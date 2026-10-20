@@ -3,11 +3,29 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const imagekit = new ImageKit({
-  publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
-  privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
-  urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
-});
+let imagekitClient = null;
+
+const getImageKitClient = () => {
+  if (imagekitClient) {
+    return imagekitClient;
+  }
+
+  const publicKey = process.env.IMAGEKIT_PUBLIC_KEY;
+  const privateKey = process.env.IMAGEKIT_PRIVATE_KEY;
+  const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT;
+
+  if (!publicKey || !privateKey || !urlEndpoint) {
+    throw new Error("ImageKit credentials are not fully configured");
+  }
+
+  imagekitClient = new ImageKit({
+    publicKey,
+    privateKey,
+    urlEndpoint,
+  });
+
+  return imagekitClient;
+};
 
 export const uploadToImageKit = async (
   fileBuffer,
@@ -15,7 +33,7 @@ export const uploadToImageKit = async (
   folder = "/resume-builder"
 ) => {
   try {
-    const response = await imagekit.upload({
+    const response = await getImageKitClient().upload({
       file: fileBuffer.toString("base64"),
       fileName: `${Date.now()}-${fileName}`,
       folder,
@@ -30,7 +48,7 @@ export const uploadToImageKit = async (
 
 export const deleteFromImageKit = async (fileId) => {
   try {
-    await imagekit.deleteFile(fileId);
+    await getImageKitClient().deleteFile(fileId);
     return true;
   } catch (error) {
     throw new Error(`ImageKit delete failed: ${error.message}`);
@@ -38,10 +56,10 @@ export const deleteFromImageKit = async (fileId) => {
 };
 
 export const getImageKitUrl = (path, transformations = []) => {
-  return imagekit.url({
+  return getImageKitClient().url({
     path,
     transformation: transformations,
   });
 };
 
-export default imagekit;
+export default getImageKitClient;

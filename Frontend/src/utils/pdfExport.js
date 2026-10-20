@@ -2,6 +2,166 @@
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
+const UNSUPPORTED_COLOR_PATTERN = /(oklab|oklch|lab\(|color\()/i;
+
+const isUnsupportedColor = (value) =>
+  typeof value === "string" && UNSUPPORTED_COLOR_PATTERN.test(value);
+
+const safeColorValue = (prop, value) => {
+  if (!isUnsupportedColor(value)) return value;
+
+  if (prop.toLowerCase().includes("backgroundimage")) return "none";
+  if (prop.toLowerCase().includes("background")) return "#ffffff";
+  if (prop.toLowerCase().includes("border") || prop.toLowerCase().includes("outline")) return "#e2e8f0";
+  if (prop.toLowerCase().includes("shadow")) return "none";
+  if (prop === "fill" || prop === "stroke") return "#1e293b";
+  return "#1e293b";
+};
+
+const extractFirstColor = (value) => {
+  if (typeof value !== "string") return null;
+
+  const hexMatch = value.match(/#[0-9a-f]{3,8}/i);
+  if (hexMatch) return hexMatch[0];
+
+  const rgbMatch = value.match(/rgba?\([^)]+\)/i);
+  if (rgbMatch) return rgbMatch[0];
+
+  return null;
+};
+
+const isGradientText = (sourceEl, computedStyle) => {
+  const className = String(sourceEl.className || "");
+  const backgroundClip = computedStyle.webkitBackgroundClip || computedStyle.backgroundClip;
+
+  return (
+    className.includes("bg-clip-text") ||
+    backgroundClip === "text" ||
+    computedStyle.webkitTextFillColor === "transparent"
+  );
+};
+
+const isBlurDecoration = (sourceEl) => {
+  const className = String(sourceEl.className || "");
+  const hasText = sourceEl.textContent?.trim();
+
+  return (
+    sourceEl.tagName === "DIV" &&
+    !hasText &&
+    className.includes("absolute") &&
+    className.includes("blur-")
+  );
+};
+
+const setImportantStyle = (el, prop, value) => {
+  if (!el?.style) return;
+  el.style.setProperty(prop, value, "important");
+};
+
+const normalizeResumeLayoutForExport = (root) => {
+  if (!root) return;
+
+  root.querySelectorAll("svg").forEach((svg) => {
+    setImportantStyle(svg, "display", "block");
+    setImportantStyle(svg, "flex-shrink", "0");
+    setImportantStyle(svg, "vertical-align", "middle");
+    setImportantStyle(svg, "position", "relative");
+    setImportantStyle(svg, "top", "2px");
+  });
+
+  root.querySelectorAll("span, div").forEach((el) => {
+    const directSvg = Array.from(el.children || []).find((child) => child.tagName === "svg");
+    if (!directSvg) return;
+
+    setImportantStyle(el, "display", "inline-flex");
+    setImportantStyle(el, "align-items", "center");
+    setImportantStyle(el, "gap", "4px");
+    setImportantStyle(el, "line-height", "1");
+    setImportantStyle(el, "vertical-align", "middle");
+    setImportantStyle(el, "white-space", "nowrap");
+  });
+
+  root.querySelectorAll("h1").forEach((nameEl) => {
+    const jobTitle = nameEl.nextElementSibling;
+    if (!jobTitle || jobTitle.tagName !== "P") return;
+
+    setImportantStyle(nameEl, "line-height", "1.12");
+    setImportantStyle(nameEl, "margin-bottom", "0");
+    setImportantStyle(jobTitle, "display", "block");
+    setImportantStyle(jobTitle, "margin-top", "16px");
+    setImportantStyle(jobTitle, "padding-top", "4px");
+    setImportantStyle(jobTitle, "line-height", "1.25");
+
+    const contactRow = jobTitle.nextElementSibling;
+    if (contactRow) {
+      setImportantStyle(contactRow, "margin-top", "18px");
+      setImportantStyle(contactRow, "padding-top", "2px");
+      setImportantStyle(contactRow, "align-items", "center");
+    }
+  });
+};
+
+const copyExportStyles = (sourceRoot, targetRoot) => {
+  if (!sourceRoot || !targetRoot) return;
+
+  const sourceElements = [sourceRoot, ...sourceRoot.querySelectorAll("*")];
+  const targetElements = [targetRoot, ...targetRoot.querySelectorAll("*")];
+  const propsToCopy = [
+    "alignItems", "background", "backgroundColor", "backgroundImage", "backgroundPosition",
+    "backgroundRepeat", "backgroundSize", "border", "borderBottom", "borderBottomColor",
+    "borderBottomLeftRadius", "borderBottomRightRadius", "borderBottomStyle", "borderBottomWidth",
+    "borderColor", "borderLeft", "borderLeftColor", "borderLeftStyle", "borderLeftWidth",
+    "borderRadius", "borderRight", "borderRightColor", "borderRightStyle", "borderRightWidth",
+    "borderStyle", "borderTop", "borderTopColor", "borderTopLeftRadius", "borderTopRightRadius",
+    "borderTopStyle", "borderTopWidth", "borderWidth", "bottom", "boxShadow", "boxSizing",
+    "color", "columnGap", "display", "fill", "flex", "flexBasis", "flexDirection", "flexGrow",
+    "flexShrink", "flexWrap", "fontFamily", "fontSize", "fontStyle", "fontWeight", "gap",
+    "gridTemplateColumns", "height", "justifyContent", "left", "letterSpacing", "lineHeight",
+    "margin", "marginBottom", "marginLeft", "marginRight", "marginTop", "maxHeight", "maxWidth",
+    "minHeight", "minWidth", "objectFit", "opacity", "outlineColor", "overflow", "padding",
+    "paddingBottom", "paddingLeft", "paddingRight", "paddingTop", "position", "right", "rowGap",
+    "stroke", "textAlign", "textDecoration", "textTransform", "top", "transform", "transformOrigin",
+    "verticalAlign", "WebkitBackgroundClip", "webkitBackgroundClip", "WebkitTextFillColor",
+    "webkitTextFillColor", "whiteSpace", "width", "wordBreak", "zIndex",
+  ];
+
+  sourceElements.forEach((sourceEl, index) => {
+    const targetEl = targetElements[index];
+    if (!targetEl?.style) return;
+
+    if (isBlurDecoration(sourceEl)) {
+      targetEl.style.display = "none";
+      return;
+    }
+
+    const computedStyle = window.getComputedStyle(sourceEl);
+    propsToCopy.forEach((prop) => {
+      const value = safeColorValue(prop, computedStyle[prop]);
+      if (value) targetEl.style[prop] = value;
+    });
+
+    if (isGradientText(sourceEl, computedStyle)) {
+      const fallbackColor = extractFirstColor(computedStyle.backgroundImage) || "#6366f1";
+      targetEl.style.background = "none";
+      targetEl.style.backgroundImage = "none";
+      targetEl.style.color = fallbackColor;
+      targetEl.style.webkitTextFillColor = fallbackColor;
+      targetEl.style.webkitBackgroundClip = "initial";
+      targetEl.style.backgroundClip = "initial";
+    }
+
+    targetEl.style.filter = "none";
+    targetEl.style.backdropFilter = "none";
+    targetEl.style.webkitBackdropFilter = "none";
+    targetEl.style.transition = "none";
+    targetEl.style.animation = "none";
+    targetEl.style.webkitPrintColorAdjust = "exact";
+    targetEl.style.printColorAdjust = "exact";
+  });
+
+  normalizeResumeLayoutForExport(targetRoot);
+};
+
 // Helper to sanitize colors before rendering
 const sanitizeElementForExport = (element) => {
   if (!element) return null;
@@ -16,18 +176,19 @@ const sanitizeElementForExport = (element) => {
     const originalStyles = {};
     
     // Check for problematic color formats
-    const colorProps = ['color', 'backgroundColor', 'borderColor', 'outlineColor', 'boxShadow'];
+    const colorProps = [
+      'color', 'background', 'backgroundColor', 'backgroundImage',
+      'borderColor', 'borderTopColor', 'borderRightColor', 'borderBottomColor',
+      'borderLeftColor', 'outlineColor', 'boxShadow', 'textShadow', 'fill', 'stroke'
+    ];
     
     colorProps.forEach(prop => {
       const value = computedStyle[prop];
-      if (value && (value.includes('oklab') || value.includes('oklch') || value.includes('lab('))) {
+      if (isUnsupportedColor(value)) {
         // Store original style
         originalStyles[prop] = el.style[prop];
         // Replace with safe fallback
-        if (prop === 'color') el.style[prop] = '#1e293b';
-        else if (prop === 'backgroundColor') el.style[prop] = '#ffffff';
-        else if (prop === 'borderColor') el.style[prop] = '#e2e8f0';
-        else el.style[prop] = 'none';
+        el.style[prop] = safeColorValue(prop, value);
         
         problematicStyles.push({ el, prop, original: originalStyles[prop] });
       }
@@ -58,10 +219,12 @@ export const exportToPDF = async (elementId, filename = "resume.pdf") => {
 
   // Show loading indicator
   const loadingToast = showLoadingToast();
+  let cloneContainer = null;
+  let cleanup = null;
   
   try {
     // Clone the element to avoid modifying the original
-    const cloneContainer = document.createElement('div');
+    cloneContainer = document.createElement('div');
     cloneContainer.style.position = 'absolute';
     cloneContainer.style.left = '-9999px';
     cloneContainer.style.top = '0';
@@ -70,9 +233,10 @@ export const exportToPDF = async (elementId, filename = "resume.pdf") => {
     const clone = element.cloneNode(true);
     cloneContainer.appendChild(clone);
     document.body.appendChild(cloneContainer);
+    normalizeResumeLayoutForExport(clone);
     
     // Sanitize the clone to remove problematic colors
-    const cleanup = sanitizeElementForExport(clone);
+    cleanup = sanitizeElementForExport(clone);
     
     // Add safe styles to the clone
     const safeStyles = document.createElement('style');
@@ -85,9 +249,6 @@ export const exportToPDF = async (elementId, filename = "resume.pdf") => {
         color: #1e293b !important;
         background-color: #ffffff !important;
         border-color: #e2e8f0 !important;
-      }
-      .gradient-bg, [class*="gradient"] {
-        background: linear-gradient(135deg, #4f46e5, #818cf8) !important;
       }
     `;
     clone.appendChild(safeStyles);
@@ -103,27 +264,10 @@ export const exportToPDF = async (elementId, filename = "resume.pdf") => {
       logging: false,
       windowWidth: clone.scrollWidth,
       windowHeight: clone.scrollHeight,
-      onclone: (clonedDoc, element) => {
-        const clonedElements = clonedDoc.querySelectorAll('*');
-        clonedElements.forEach(el => {
-          if (el.style) {
-            const color = el.style.color;
-            const bgColor = el.style.backgroundColor;
-            
-            if (color && (color.includes('oklab') || color.includes('oklch'))) {
-              el.style.color = '#1e293b';
-            }
-            if (bgColor && (bgColor.includes('oklab') || bgColor.includes('oklch'))) {
-              el.style.backgroundColor = '#ffffff';
-            }
-          }
-        });
+      onclone: (_clonedDoc, clonedElement) => {
+        copyExportStyles(clone, clonedElement);
       }
     });
-    
-    // Clean up
-    cleanup();
-    document.body.removeChild(cloneContainer);
     
     // A4 dimensions in mm
     const pdfWidth = 210;
@@ -196,73 +340,12 @@ export const exportToPDF = async (elementId, filename = "resume.pdf") => {
   } catch (error) {
     console.error("PDF export error:", error);
     hideLoadingToast(loadingToast);
-    
-    // Try fallback method
-    return await fallbackExport(element, filename);
-  }
-};
-
-// Fallback export method
-const fallbackExport = async (element, filename) => {
-  try {
-    // Create a simple print-friendly version
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      throw new Error("Pop-up blocked. Please allow pop-ups for this site.");
+    throw new Error("Unable to export PDF. Please check the browser console for the export error.");
+  } finally {
+    if (cleanup) cleanup();
+    if (cloneContainer?.parentNode) {
+      cloneContainer.parentNode.removeChild(cloneContainer);
     }
-    
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${filename}</title>
-          <style>
-            body { 
-              margin: 0; 
-              padding: 20px; 
-              font-family: Arial, sans-serif;
-            }
-            #resume-content {
-              max-width: 800px;
-              margin: 0 auto;
-            }
-            * {
-              color: #000 !important;
-              background: #fff !important;
-              border-color: #ccc !important;
-            }
-            .gradient-bg, [class*="gradient"] {
-              background: #4f46e5 !important;
-            }
-            .gradient-text {
-              color: #4f46e5 !important;
-              background: none !important;
-            }
-            [style*="box-shadow"], [class*="shadow"] {
-              box-shadow: none !important;
-            }
-          </style>
-        </head>
-        <body>
-          <div id="resume-content">
-            ${element.cloneNode(true).outerHTML}
-          </div>
-          <script>
-            window.onload = () => {
-              setTimeout(() => {
-                window.print();
-                setTimeout(() => window.close(), 1000);
-              }, 500);
-            };
-          <\/script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    return true;
-  } catch (error) {
-    console.error("Fallback export failed:", error);
-    throw new Error("Unable to export PDF. Please try again.");
   }
 };
 

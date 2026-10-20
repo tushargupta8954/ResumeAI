@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
@@ -51,6 +51,7 @@ const ResumeBuilderPage = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [previewScale, setPreviewScale] = useState("sm");
   const [fullPreview, setFullPreview] = useState(false);
+  const autoExportedRef = useRef(false);
 
   // Load resume
   useEffect(() => {
@@ -71,7 +72,7 @@ const ResumeBuilderPage = () => {
     setShowAI(isAIMode);
   }, [isAIMode]);
 
-  const handleExportPDF = async () => {
+  const handleExportPDF = useCallback(async () => {
     setIsExporting(true);
     try {
       const filename = getResumeFilename(resumeData);
@@ -82,7 +83,19 @@ const ResumeBuilderPage = () => {
     } finally {
       setIsExporting(false);
     }
-  };
+  }, [id, isNew, resumeData]);
+
+  useEffect(() => {
+    const shouldExport = searchParams.get("export") === "true";
+    const resumeLoaded = !isNew && currentResume?._id === id && !isLoading;
+
+    if (!shouldExport || !resumeLoaded || autoExportedRef.current) return;
+
+    autoExportedRef.current = true;
+    handleExportPDF().finally(() => {
+      navigate(`/resumes/${id}/edit`, { replace: true });
+    });
+  }, [searchParams, isNew, currentResume?._id, id, isLoading, navigate, handleExportPDF]);
 
   if (isLoading && !isNew) {
     return <Loader fullScreen message="Loading resume..." />;

@@ -410,6 +410,9 @@ const resumeSlice = createSlice({
       state.activeResumeData = { ...defaultResumeData };
       state.unsavedChanges = false;
       state.currentResume = null;
+      state.currentTemplate = defaultResumeData.template;
+      state.colorScheme = { ...defaultResumeData.colorScheme };
+      state.sectionOrder = [...defaultResumeData.sectionOrder];
     },
 
     loadResumeForEdit: (state, action) => {

@@ -223,39 +223,45 @@ const ModernTemplate = ({ data }) => {
               {personalInfo.firstName} {personalInfo.lastName}
             </h1>
             {personalInfo.jobTitle && (
-              <p className="text-white/80 text-sm mt-0.5 font-medium">{personalInfo.jobTitle}</p>
+              <p className="text-white/80 text-sm mt-2 font-medium" style={{ lineHeight: 1.2 }}>{personalInfo.jobTitle}</p>
             )}
 
             {/* Contact Info */}
-            <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3">
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-4">
               {personalInfo.email && (
-                <span className="flex items-center gap-1 text-[11px] text-white/75">
-                  <Mail className="w-3 h-3 flex-shrink-0" /> {personalInfo.email}
+                <span className="inline-flex items-center gap-1 text-[11px] text-white/75 leading-none">
+                  <Mail className="w-3 h-3 flex-shrink-0" style={{ display: "block" }} />
+                  <span>{personalInfo.email}</span>
                 </span>
               )}
               {personalInfo.phone && (
-                <span className="flex items-center gap-1 text-[11px] text-white/75">
-                  <Phone className="w-3 h-3 flex-shrink-0" /> {personalInfo.phone}
+                <span className="inline-flex items-center gap-1 text-[11px] text-white/75 leading-none">
+                  <Phone className="w-3 h-3 flex-shrink-0" style={{ display: "block" }} />
+                  <span>{personalInfo.phone}</span>
                 </span>
               )}
               {personalInfo.location && (
-                <span className="flex items-center gap-1 text-[11px] text-white/75">
-                  <MapPin className="w-3 h-3 flex-shrink-0" /> {personalInfo.location}
+                <span className="inline-flex items-center gap-1 text-[11px] text-white/75 leading-none">
+                  <MapPin className="w-3 h-3 flex-shrink-0" style={{ display: "block" }} />
+                  <span>{personalInfo.location}</span>
                 </span>
               )}
               {personalInfo.linkedin && (
-                <span className="flex items-center gap-1 text-[11px] text-white/75">
-                  <Linkedin className="w-3 h-3 flex-shrink-0" /> {personalInfo.linkedin}
+                <span className="inline-flex items-center gap-1 text-[11px] text-white/75 leading-none">
+                  <Linkedin className="w-3 h-3 flex-shrink-0" style={{ display: "block" }} />
+                  <span>{personalInfo.linkedin}</span>
                 </span>
               )}
               {personalInfo.github && (
-                <span className="flex items-center gap-1 text-[11px] text-white/75">
-                  <Github className="w-3 h-3 flex-shrink-0" /> {personalInfo.github}
+                <span className="inline-flex items-center gap-1 text-[11px] text-white/75 leading-none">
+                  <Github className="w-3 h-3 flex-shrink-0" style={{ display: "block" }} />
+                  <span>{personalInfo.github}</span>
                 </span>
               )}
               {personalInfo.website && (
-                <span className="flex items-center gap-1 text-[11px] text-white/75">
-                  <Globe className="w-3 h-3 flex-shrink-0" /> {personalInfo.website}
+                <span className="inline-flex items-center gap-1 text-[11px] text-white/75 leading-none">
+                  <Globe className="w-3 h-3 flex-shrink-0" style={{ display: "block" }} />
+                  <span>{personalInfo.website}</span>
                 </span>
               )}
             </div>

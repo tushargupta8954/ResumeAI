@@ -209,23 +209,26 @@ const CreativeTemplate = ({ data }) => {
               {personalInfo.firstName} <span style={{ color: primary }}>{personalInfo.lastName}</span>
             </h1>
             {personalInfo.jobTitle && (
-              <p className="text-sm mt-1" style={{ color: secondary }}>{personalInfo.jobTitle}</p>
+              <p className="text-sm mt-2" style={{ color: secondary, lineHeight: 1.2 }}>{personalInfo.jobTitle}</p>
             )}
             
-            <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-3">
+            <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-4">
               {personalInfo.email && (
-                <span className="flex items-center gap-1 text-[11px] text-slate-600">
-                  <Mail className="w-3 h-3" style={{ color: primary }} /> {personalInfo.email}
+                <span className="inline-flex items-center gap-1 text-[11px] text-slate-600 leading-none">
+                  <Mail className="w-3 h-3 flex-shrink-0" style={{ color: primary, display: "block" }} />
+                  <span>{personalInfo.email}</span>
                 </span>
               )}
               {personalInfo.phone && (
-                <span className="flex items-center gap-1 text-[11px] text-slate-600">
-                  <Phone className="w-3 h-3" style={{ color: primary }} /> {personalInfo.phone}
+                <span className="inline-flex items-center gap-1 text-[11px] text-slate-600 leading-none">
+                  <Phone className="w-3 h-3 flex-shrink-0" style={{ color: primary, display: "block" }} />
+                  <span>{personalInfo.phone}</span>
                 </span>
               )}
               {personalInfo.location && (
-                <span className="flex items-center gap-1 text-[11px] text-slate-600">
-                  <MapPin className="w-3 h-3" style={{ color: primary }} /> {personalInfo.location}
+                <span className="inline-flex items-center gap-1 text-[11px] text-slate-600 leading-none">
+                  <MapPin className="w-3 h-3 flex-shrink-0" style={{ color: primary, display: "block" }} />
+                  <span>{personalInfo.location}</span>
                 </span>
               )}
             </div>

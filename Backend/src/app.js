@@ -17,6 +17,10 @@ dotenv.config();
 
 const app = express();
 
+// Render (and most hosted platforms) sit behind a reverse proxy. Trust the
+// first proxy so rate limiting and secure request handling see the real client.
+app.set("trust proxy", 1);
+
 // Security Middleware
 app.use(
   helmet({
@@ -27,7 +31,24 @@ app.use(
 // CORS Configuration
 app.use(
   cors({
-    origin: [process.env.CLIENT_URL, "http://localhost:5173"],
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        process.env.CLIENT_URL,
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+      ]
+        .flatMap((value) => (value || "").split(","))
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+      // Allow server-to-server requests and local tools without an Origin
+      // header, while restricting browser requests to configured origins.
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Origin is not allowed by CORS"));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],

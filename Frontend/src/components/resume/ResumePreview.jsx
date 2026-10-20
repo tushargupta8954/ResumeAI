@@ -25,7 +25,8 @@ const ResumePreview = ({ scale = 1, id = "resume-preview" }) => {
   const resumeData = useSelector(selectActiveResumeData);
   const currentTemplate = useSelector(selectCurrentTemplate);
 
-  const TemplateComponent = templateMap[currentTemplate] || ModernTemplate;
+  const templateId = resumeData?.template || currentTemplate || "modern";
+  const TemplateComponent = templateMap[templateId] || ModernTemplate;
 
   return (
     <div
